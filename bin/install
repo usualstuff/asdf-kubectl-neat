@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+
+set -e
+set -o pipefail
+
+install_kubectl-neat() {
+  local install_type=$1
+  local version=$2
+  local install_path=$3
+  local platform="$(uname | tr '[:upper:]' '[:lower:]')_amd64"
+  local bin_install_path="$install_path/bin"
+  local binary_path="$bin_install_path/kubectl-neat"
+  local download_url=$(get_download_url $version $platform)
+
+  if [ "$TMPDIR" = "" ]; then
+    local tmp_download_dir=$(mktemp -d -t kubectl-neat_XXXXXX)
+  else
+    local tmp_download_dir=$TMPDIR
+  fi
+
+  local download_path="$tmp_download_dir/$(get_filename $version $platform)"
+
+  echo "Downloading kubectl-neat from ${download_url} to ${download_path}"
+  curl -f -Lo $download_path $download_url
+
+  echo "Extracting kubectl-neat archive"
+  unarchive "$download_path" "$tmp_download_dir"
+
+  echo "Creating bin directory"
+  mkdir -p "${bin_install_path}"
+
+  echo "Cleaning previous binaries"
+  rm -f $binary_path 2>/dev/null || true
+
+  echo "Copying binary"
+  cp "${tmp_download_dir}/kubectl-neat" ${binary_path}
+  chmod +x ${binary_path}
+}
+
+unarchive() {
+  local archive_path="$1"
+  local dest_dir="$2"
+
+  tar -xzf "$archive_path" --directory $dest_dir
+}
+
+get_filename() {
+  local version="$1"
+  local platform="$2"
+
+  echo "kubectl-neat_${platform}.tar.gz"
+}
+
+get_download_url() {
+  local version="$1"
+  local platform="$2"
+  local filename="$(get_filename $version $platform)"
+
+  echo "https://github.com/itaysk/kubectl-neat/releases/download/v${version}/${filename}"
+}
+
+install_kubectl-neat $ASDF_INSTALL_TYPE $ASDF_INSTALL_VERSION $ASDF_INSTALL_PATH
